@@ -1,0 +1,28 @@
+local lib = require "modules.alpLib"
+
+function init(self)
+	self.scenes = { "/scene1#scene1_proxy", "/scene2#scene2_proxy" }
+	self.sceneIndex = 1
+	msg.post(self.scenes[self.sceneIndex], "acquire_input_focus")
+	msg.post(self.scenes[self.sceneIndex], "load")
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == lib.hashed("proxy_loaded") then
+		msg.post(sender, "init")
+		msg.post(sender, "enable")
+	elseif message_id == lib.hashed("nextScene") then
+		msg.post(self.scenes[self.sceneIndex - 1], "release_input_focus")
+		msg.post(self.scenes[self.sceneIndex - 1], "disable")
+		msg.post(self.scenes[self.sceneIndex - 1], "final")
+		msg.post(self.scenes[self.sceneIndex - 1], "unload")
+	elseif message_id == lib.hashed("proxy_unloaded") then
+		msg.post(self.scenes[self.sceneIndex], "load")
+		msg.post(self.scenes[self.sceneIndex], "acquire_input_focus")
+	elseif message_id == lib.hashed("restart") then
+		msg.post(self.scenes[self.sceneIndex], "release_input_focus")
+		msg.post(self.scenes[self.sceneIndex], "disable")
+		msg.post(self.scenes[self.sceneIndex], "final")
+		msg.post(self.scenes[self.sceneIndex], "unload")
+	end
+end

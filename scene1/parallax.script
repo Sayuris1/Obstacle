@@ -1,0 +1,59 @@
+local lib = require "modules.alpLib"
+
+function init(self)
+end
+
+function update(self, dt)
+	local pos = go.get_position()
+	local playerPos = go.get_position("/player/player")
+	local newPos = vmath.vector3(-playerPos.x, -playerPos.y, pos.z)
+	if go.get_id() == lib.hashed("/bg_0") then
+		newPos.x = newPos.x / 30
+		newPos.y = newPos.y / 30
+		go.set_position(newPos)
+	elseif go.get_id() == lib.hashed("/bg_1") then
+		newPos.x = newPos.x / 25
+		newPos.y = newPos.y / 25
+		go.set_position(newPos)
+	elseif go.get_id() == lib.hashed("/bg_2") then
+		newPos.x = newPos.x / 20
+		newPos.y = newPos.y / 20
+		go.set_position(newPos)
+	elseif go.get_id() == lib.hashed("/bg_3") then
+		newPos.x = newPos.x / 12
+		newPos.y = newPos.y / 12
+		go.set_position(newPos)
+	elseif go.get_id() == lib.hashed("/bg_6") then
+		local newPos
+		if pos.x >= 870 then
+			newPos = vmath.vector3(-1000, -1064, pos.z)
+		else
+			newPos = vmath.vector3(pos.x + 1, pos.y + 1, pos.z)
+		end
+			go.set_position(newPos)
+	elseif go.get_id() == lib.hashed("/bg_7") then
+		local newPos
+		if pos.y >= 800 then
+			newPos = vmath.vector3(-1000, -1064, pos.z)
+		else
+			newPos = vmath.vector3(pos.x + 2, pos.y + 2, pos.z)
+		end
+			go.set_position(newPos)
+	elseif go.get_id() == lib.hashed("/bg_6_2") then
+		local newPos
+		if pos.x >= 870 then
+			newPos = vmath.vector3(-1000, -1050, pos.z)
+		else
+			newPos = vmath.vector3(pos.x + 1, pos.y + 1, pos.z)
+		end
+			go.set_position(newPos)
+	elseif go.get_id() == lib.hashed("/bg_7_2") then
+		local newPos
+		if pos.y >= 800 then
+			newPos = vmath.vector3(-1000, -1050, pos.z)
+		else
+			newPos = vmath.vector3(pos.x + 2, pos.y + 2, pos.z)
+		end
+			go.set_position(newPos)
+	end
+end

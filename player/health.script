@@ -1,0 +1,31 @@
+local lib = require "modules.alpLib"
+
+function init(self)
+	local playerPos = go.get_world_position("/player/player")
+	local HEALTHPos = go.get_world_position()
+	self.distance = playerPos - HEALTHPos
+end
+
+function update(self, dt)
+	local playerPos = go.get_world_position("/player/player")
+	local newPos = playerPos - self.distance
+	go.animate(".", "position", go.PLAYBACK_ONCE_FORWARD, newPos, go.EASING_LINEAR, 0.2, 0)
+	if HEALTH == 4 then
+		go.animate("/player/health#sprite", "tint.w", go.PLAYBACK_ONCE_FORWARD, 1, go.EASING_OUTEXPO, 3, 0)
+	elseif HEALTH == 3 then
+		go.animate("/player/health#sprite", "tint.w", go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTEXPO, 3, 0)
+		go.animate("/player/health2#sprite", "tint.w", go.PLAYBACK_ONCE_FORWARD, 1, go.EASING_OUTEXPO, 3, 0)
+	elseif HEALTH == 2 then
+		go.animate("/player/health2#sprite", "tint.w", go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTEXPO, 3, 0)
+		go.animate("/player/health3#sprite", "tint.w", go.PLAYBACK_ONCE_FORWARD, 1, go.EASING_OUTEXPO, 3, 0)
+	elseif HEALTH == 1 then
+		go.animate("/player/health3#sprite", "tint.w", go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTEXPO, 3, 0)
+	end
+end
+
+function on_message(self, message_id, message)
+	if message_id == lib.hashed("special") then
+		go.animate("/player/space#sprite", "tint.w", go.PLAYBACK_ONCE_FORWARD, 0, go.EASING_OUTEXPO, 3, 0)
+		timer.delay(10, false, function ( ) go.animate("/player/space#sprite", "tint.w", go.PLAYBACK_ONCE_FORWARD, 1, go.EASING_OUTEXPO, 3, 0); end)
+	end
+end

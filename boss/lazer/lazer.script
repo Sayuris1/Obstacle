@@ -1,0 +1,49 @@
+local camera = require "orthographic.camera"
+local lib = require "modules.alpLib"
+
+local Fire = function (self)
+	go.set_scale(self.scale)
+	msg.post("#sprite", "play_animation", {id = lib.hashed("lazer_fire")})
+	timer.delay(2, false, function () go.delete(); particlefx.stop("#laser"); end)
+	self.fire = true
+	local playerHit = physics.raycast(go.get_world_position(), self.playerPos, {lib.hashed("player")}, {all = false})
+	if playerHit then
+		msg.post("player/player#player", lib.hashed("hit"), { lazer = true })
+	end
+	camera.shake(go.get_id("/camera"), 0.05, 0.5, "both")
+	particlefx.play("#laser")
+end
+
+function init(self)
+	self.follow = 3
+	self.fire = false
+	self.scale = go.get_scale()
+	go.animate(".", "scale", go.PLAYBACK_ONCE_FORWARD, vmath.vector3(self.scale.x, 0, 1), go.EASING_LINEAR, self.follow + 1)
+end
+
+function update(self, dt)
+	self.follow = self.follow - dt
+	if self.follow >= 0 then
+		self.playerPos = go.get_world_position("player/player")
+		local bossPos = go.get_world_position("boss")
+		local angle = math.atan2(self.playerPos.y - bossPos.y, self.playerPos.x - bossPos.x)
+		local quat = vmath.quat_rotation_z(angle)
+		go.animate(".", "rotation", go.PLAYBACK_ONCE_FORWARD, quat, go.EASING_LINEAR, 0.2, 0)
+	elseif not self.once then
+		timer.delay(1, false, Fire)
+		self.once = true
+	end
+	go.set_position(go.get_position("/boss") - vmath.vector3(0, 0, 1))
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == lib.hashed ("trigger_response") then
+		if self.fire then
+			if message.other_group == lib.hashed ("player") then
+				msg.post("player/player#player", lib.hashed("hit"), { lazer = true })
+			elseif message.other_group == lib.hashed ("bullet") then
+				go.delete(message.other_id)
+			end
+		end
+	end
+end

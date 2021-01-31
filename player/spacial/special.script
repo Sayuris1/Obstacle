@@ -1,0 +1,28 @@
+local lib = require "modules.alpLib"
+
+local Particle = function ()
+	local particle = "#specialfx"
+	particlefx.play(particle)
+	go.delete()
+end
+
+function init(self)
+	go.property("speed", vmath.vector3())
+end
+
+function update(self, dt)
+	local location = go.get_world_position()
+	local newPos = location + self.speed
+	go.set_position(newPos)
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == lib.hashed("collision_response") then
+		if message.other_group == lib.hashed("bullet") then
+			Particle()
+			go.delete(message.other_id)
+		elseif message.other_group == lib.hashed("wall") or message.other_group == lib.hashed("boss") then
+			Particle()
+		end
+	end
+end

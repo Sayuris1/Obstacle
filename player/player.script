@@ -1,0 +1,187 @@
+local camera = require "orthographic.camera"
+local lib = require "modules.alpLib"
+
+local LookAtCursor = function (action)
+	local cursor_world = camera.screen_to_world(go.get_id("/camera"), vmath.vector3(action.x, action.y, 0))
+	local player_location = go.get_world_position()
+	local angle = math.atan2 ( player_location.y - cursor_world.y, player_location.x - cursor_world.x )
+	local player_quat = vmath.quat_rotation_z(angle)
+	go.set_rotation(player_quat)
+end
+
+local Vulnerable = function (self, handle, time_elapsed)
+	self.speed = self._speed
+	local sqrt = vmath.length_sqr(self.moveVec)
+	local speedSqrt = self.speed * self.speed
+	if sqrt > speedSqrt and sqrt ~= speedSqrt * 2 then
+		self.moveVec = self.moveVec / 2
+	end
+	self.vulnerable = true
+	go.animate("#sprite", "tint", go.PLAYBACK_ONCE_FORWARD, vmath.vector4(1, 1, 1, 1), go.EASING_INOUTSINE, 0.5)
+	self.shiftTimer = 0
+	self.shiftOnce = true
+	particlefx.stop("#playerfx")
+	particlefx.stop("#player_blue")
+	particlefx.play("#player_red")
+end
+
+local Special = function (self, handle, time_elapsed)
+	local vector = vmath.vector3(0, 5, 0)
+	local quat = vmath.quat_rotation_z(self.totalTime * 10)
+	local speed = vmath.rotate(quat, vector)
+	factory.create("#special", go.get_world_position(), nil, { speed = speed }, 1)
+	self.totalTime = self.totalTime + time_elapsed
+	if self.totalTime >= 1.25 then
+		self.totalTime = 0
+		timer.cancel(handle)
+	else
+		self.totalTime = self.totalTime + time_elapsed
+	end
+end
+
+function init(self)
+	particlefx.play("#player_blue")
+	msg.post(".", "acquire_input_focus")
+	-- Move
+	go.property("speed", 5)
+	self._speed = self.speed
+	self.shiftTimer = 3
+	self.shiftOnce = true
+	self.moveVec = vmath.vector3(0, 0, 0)
+	-- Bullet
+	go.property("bulletCreate", 0.2)
+	self._bullet = self.bulletCreate
+	self.bulletFire = false
+	self.vulnerable = true
+	-- Special
+	self.special = true
+	-- Physics
+	self.correction = vmath.vector3()
+	-- UI
+	HEALTH = 4
+	SCORE = 0
+	msg.post("/gui", "disable")
+	-- Special
+	self.totalTime = 0
+end
+
+function update(self, dt)
+	-- Move **********************************************************************************************************
+	local moveVecLenght = vmath.length_sqr(self.moveVec)
+	local speedSqr = self.speed * self.speed
+	if moveVecLenght >= speedSqr then
+		local newPos
+		if moveVecLenght == speedSqr then
+			newPos = go.get_world_position() + self.moveVec
+		else
+			local normalMoveVec = vmath.normalize(self.moveVec)
+			local speddyMoveVec = vmath.mul_per_elem(normalMoveVec, vmath.vector3(self.speed, self.speed, 0))
+			newPos = go.get_world_position() + speddyMoveVec
+		end
+		go.set_position(newPos)
+	end
+	-- Bullet ********************************************************************************************************
+	if self.bulletCreate <= 0 and self.bulletFire then
+		factory.create("#factory", go.get_world_position() + vmath.vector3(0, 0, -1), nil, nil, 1)
+		self.bulletCreate = self._bullet
+	else
+		self.bulletCreate = self.bulletCreate - dt
+	end
+	self.correction = vmath.vector3() -- Move
+	if self.shiftTimer >= 3 and self.shiftOnce then
+		particlefx.stop("#player_red")
+		particlefx.play("#player_blue")
+		self.shiftOnce = false
+	else
+		self.shiftTimer = self.shiftTimer + dt
+	end
+	-- Parallax
+end
+
+function on_message(self, message_id, message, sender)
+	-- Wall Collision ************************************************************************************************
+	if message_id == lib.hashed ("contact_point_response") then
+		if message.other_group == lib.hashed("wall") or message.other_group == lib.hashed ("boss") then
+			if message.distance > 0 then
+				local proj = vmath.project(self.correction, message.normal * message.distance)
+				if proj < 1 then
+					local comp = (message.distance - message.distance * proj) * message.normal
+					go.set_position(go.get_position() + comp)
+					self.correction = self.correction + comp
+				end
+			end
+		end
+	-- Hit Collision ****************************************************************************************************
+	elseif message_id == lib.hashed ("hit") and self.vulnerable then
+		if not message.heal then
+			if message.bullet then
+				go.delete(sender)
+				camera.shake(go.get_id("/camera"), 0.01, 0.3, "both")
+			end
+			self.vulnerable = false
+			go.animate("#sprite", "tint", go.PLAYBACK_ONCE_FORWARD, vmath.vector4(0, 0, 0.8, 0.9), go.EASING_INOUTSINE, 0.5)
+			timer.delay(2, false, Vulnerable)
+			HEALTH = HEALTH - 1
+			if HEALTH <= 0 then
+				msg.post(".", "disable")
+				msg.post("/gui", "enable")
+				msg.post("/gui", "end")
+			end
+			particlefx.stop("#player_blue")
+			particlefx.stop("#player_red")
+		elseif HEALTH < 4 then
+			HEALTH = HEALTH + 1
+		end
+	-- **********************************************************************************************
+	end
+end
+
+function on_input(self, action_id, action)
+	LookAtCursor(action)
+	if action.pressed then
+		-- Bullet -----------------------------------------------------------------------------------
+		if action_id == lib.hashed ("touch") then
+			self.bulletFire = true
+		-- Move ************************************************************************************
+		elseif action_id == lib.hashed ("up") then
+			self.moveVec = self.moveVec + vmath.vector3(0, self.speed, 0)
+		elseif action_id == lib.hashed ("down") then
+			self.moveVec = self.moveVec + vmath.vector3(0, -self.speed, 0)
+		elseif action_id == lib.hashed ("right") then
+			self.moveVec = self.moveVec + vmath.vector3(self.speed, 0, 0)
+		elseif action_id == lib.hashed ("left") then
+			self.moveVec = self.moveVec + vmath.vector3(-self.speed, 0, 0)
+		-- Shift ***********************************************************************************
+		elseif action_id == lib.hashed("shift") and self.vulnerable and self.shiftTimer >= 3 then
+			self.speed = self.speed * 2
+			self.moveVec = self.moveVec * 2
+			self.vulnerable = false
+			go.animate("#sprite", "tint", go.PLAYBACK_ONCE_FORWARD, vmath.vector4(0, 0, 0.8, 0.9), go.EASING_INOUTSINE, 0.5)
+			timer.delay(2, false, Vulnerable)
+			particlefx.stop("#player_blue")
+			particlefx.play("#playerfx")
+		-- Special Space ****************************************************************************
+		elseif action_id == lib.hashed("space") and self.special then
+			timer.delay(0, true, Special)
+			self.special = false
+			timer.delay(10, false, function ( ) self.special = true; end)
+			msg.post("/player/space#health", "special")
+		end
+	elseif action.released then
+		-- Bullet -----------------------------------------------------------------------------------
+		if action_id == lib.hashed ("touch") then
+			self.bulletFire = false
+		-- Move *************************************************************************************
+		elseif action_id == lib.hashed ("up") then
+			self.moveVec = self.moveVec - vmath.vector3(0, self.speed, 0)
+		elseif action_id == lib.hashed ("down") then
+			self.moveVec = self.moveVec - vmath.vector3(0, -self.speed, 0)
+		elseif action_id == lib.hashed ("right") then
+			self.right = false
+			self.moveVec = self.moveVec - vmath.vector3(self.speed, 0, 0)
+		elseif action_id == lib.hashed ("left") then
+			self.moveVec = self.moveVec - vmath.vector3(-self.speed, 0, 0)
+		end
+	end
+	-- *************************************************************************************************
+end

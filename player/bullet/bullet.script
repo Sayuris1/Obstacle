@@ -1,0 +1,73 @@
+local lib = require "modules.alpLib"
+
+math.randomseed(os.time())
+
+function init(self)
+	go.property("speed", 3)
+
+	sprite.set_constant("#sprite", "tint", vmath.vector4(0, 0, 1, 1))
+
+	-- Decide Move Direction *******************************************************************
+	local rotation = go.get_rotation()
+	local direction = vmath.vector3(self.speed, 0, 0)
+	self.updatedDirection = vmath.rotate(rotation, direction)
+	-- Hit
+	self.canHit = false
+	-- Heal
+	self.heal = false
+	self.canCollide = true
+end
+
+function update(self, dt)
+	-- Move ******************************************************************
+	local position = go.get_world_position()
+	local newPos = position - self.updatedDirection
+	go.set_position(newPos)
+	-- ***********************************************************************
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == lib.hashed ("contact_point_response") then
+		-- Wall Collide ***************************************************************************************************
+		if message.other_group == lib.hashed("wall") or message.other_group == lib.hashed("boss") then
+			if not self.canCollide then
+				local newpos = go.get_position() + message.normal * message.distance * 2
+				go.set_position(newpos)
+			else
+				self.canCollide = false
+				timer.delay(0.2, false, function () self.canCollide = true; end)
+
+				local random = math.random(10)
+				if random == 1 then
+					-- Heal *******************************************************************************************************
+					self.heal = true
+					self.canHit = true
+					sprite.set_constant("#sprite", "tint", vmath.vector4(0, 1, 0, 1))
+				else
+					-- Bullet *****************************************************************************************************
+					sprite.set_constant("#sprite", "tint", vmath.vector4(1, 0, 0, 1))
+					self.canHit = true
+					self.heal = false
+				end
+				-- Boss *********************************************************************************************************
+				if message.other_group == lib.hashed("boss") then
+					SCORE = SCORE + 1
+					sprite.set_constant("/boss#sprite", "tint", vmath.vector4(1, 0, 0, 1))
+					timer.delay(0.1, false, function () sprite.set_constant("/boss#sprite", "tint", vmath.vector4(1, 1, 1, 1)); end)
+				end
+			end
+			-- Move *******************************************************************************************************
+			if message.normal.x ~= 0 then
+				self.updatedDirection = vmath.mul_per_elem(self.updatedDirection, vmath.vector3(-1, 1, 1))
+			elseif message.normal.y ~= 0 then
+				self.updatedDirection = vmath.mul_per_elem(self.updatedDirection, vmath.vector3(1,-1, 1))
+			end
+			
+		-- Player Collide ***************************************************************************************************
+		elseif message.other_group == lib.hashed("player") and self.canHit then
+			msg.post("player/player#player", lib.hashed("hit"), { heal = self.heal, bullet = true })
+			self.canHit = false
+			sprite.set_constant("#sprite", "tint", vmath.vector4(0, 0, 1, 1))
+		end
+	end
+end

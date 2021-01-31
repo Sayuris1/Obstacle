@@ -1,0 +1,45 @@
+[bootstrap]
+main_collection = /loader/loader.collectionc
+render = /my_render.renderc
+
+[script]
+shared_state = 1
+
+[display]
+width = 960
+height = 640
+fullscreen = 0
+
+[android]
+input_method = HiddenInputField
+
+[project]
+title = bob
+dependencies = https://github.com/britzl/defold-orthographic/archive/master.zip,https://github.com/britzl/defold-richtext/archive/master.zip
+
+[sprite]
+subpixels = 0
+max_count = 9999
+
+[label]
+subpixels = 1
+
+[graphics]
+max_draw_calls = 9999
+default_texture_min_filter = linear
+default_texture_mag_filter = linear
+verify_graphics_calls = 1
+
+[resource]
+max_resources = 9999
+
+[collection]
+max_instances = 9999
+
+[particle_fx]
+max_particle_count = 9999
+max_count = 9999
+
+[physics]
+trigger_overlap_capacity = 9999
+

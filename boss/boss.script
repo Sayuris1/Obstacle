@@ -1,0 +1,16 @@
+local Fire = function (self)
+	factory.create("#factory", go.get_world_position() + vmath.vector3(0, 0, -1), nil, nil, 5)
+end
+
+function init(self)
+	-- Fire
+	timer.delay(6, true, Fire)
+end
+
+function update(self, dt)
+    local pos = go.get_position()
+	local playerPos = go.get_position("/player/player")
+	local newPos = vmath.vector3(pos.x, -playerPos.y / 5, pos.z)
+	go.set_position(newPos)
+	label.set_text("#label", SCORE)
+end
